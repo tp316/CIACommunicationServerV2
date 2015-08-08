@@ -3,6 +3,7 @@
 
 #include "cia_client.hpp"
 #include "../tools/boost_log.hpp"
+#include "../cti/base_voice_card_control.hpp"
 
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
@@ -13,7 +14,8 @@ using namespace boost::asio;
 class cia_server
 {
 public:
-	cia_server(std::size_t io_comppletions_thread_number, std::size_t server_port);
+	cia_server(std::size_t io_comppletions_thread_number, std::size_t server_port, 
+		base_voice_card_control base_voice_card, std::size_t client_socket_timeout_elapsed);
 	~cia_server();
 protected:
 	void handle_accept(cia_client::ptr client, const boost::system::error_code & err);
@@ -22,12 +24,19 @@ private:
 	ip::tcp::acceptor m_acceptor_;
 	boost::thread_group m_io_comppletions_thread_;
 	io_service::work m_io_worker;
+	std::size_t m_io_comppletions_thread_number;
+	std::size_t m_client_socket_timeout_elapsed;
+	base_voice_card_control m_base_voice_card;
 };
 
-cia_server::cia_server(std::size_t io_comppletions_thread_number, std::size_t server_port) :
-m_io_service_(), m_acceptor_(m_io_service_, ip::tcp::endpoint(ip::tcp::v4(), server_port)), m_io_worker(m_io_service_)
+cia_server::cia_server(std::size_t io_comppletions_thread_number, std::size_t server_port, 
+	base_voice_card_control base_voice_card, std::size_t client_socket_timeout_elapsed) :
+m_io_service_(), m_acceptor_(m_io_service_, ip::tcp::endpoint(ip::tcp::v4(), server_port)), m_io_worker(m_io_service_),
+m_base_voice_card(base_voice_card),
+m_io_comppletions_thread_number(io_comppletions_thread_number),
+m_client_socket_timeout_elapsed(client_socket_timeout_elapsed)
 {
-	cia_client::ptr client = cia_client::new_(m_io_service_, 10, 0);
+	cia_client::ptr client = cia_client::new_(m_io_service_, m_io_comppletions_thread_number, m_client_socket_timeout_elapsed, m_base_voice_card);
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "服务器开始准备接收新的连接";
 	m_acceptor_.async_accept(client->sock(), boost::bind(&cia_server::handle_accept,this, client, _1));
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "服务器开始创建异步IO处理线程";
@@ -43,7 +52,7 @@ void cia_server::handle_accept(cia_client::ptr client, const boost::system::erro
 {
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "服务器接收到新的客户端连接";
 	client->start();
-	cia_client::ptr new_client = cia_client::new_(m_io_service_, 10, 0);
+	cia_client::ptr new_client = cia_client::new_(m_io_service_, m_io_comppletions_thread_number, m_client_socket_timeout_elapsed, m_base_voice_card);
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "服务器开始准备接收新的连接";
 	m_acceptor_.async_accept(new_client->sock(), boost::bind(&cia_server::handle_accept, this, new_client, _1));
 }

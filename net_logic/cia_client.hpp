@@ -5,6 +5,8 @@
 #include "CIA_DEF.h"
 #include "../tools/blocking_queue.hpp"
 #include "../tools/boost_log.hpp"
+#include "base_client.hpp"
+#include "../cti/base_voice_card_control.hpp"
 
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/utility.hpp>
@@ -23,21 +25,22 @@ std::vector<client_ptr> clients;
 
 class cia_client : public
 	boost::enable_shared_from_this<cia_client>,
-	boost::noncopyable
+	boost::noncopyable,
+	base_client
 {
 public:
 	typedef cia_client self_type;
 	typedef boost::system::error_code error_code;
 	typedef boost::shared_ptr<cia_client> ptr;
 
-	cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed);
+	cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, base_voice_card_control base_voice_card);
 	~cia_client();
-	static ptr new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed);
+	static ptr new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, base_voice_card_control base_voice_card);
 	void start();
 	void stop();
 	bool started() const { return m_started_; }
 	ip::tcp::socket & sock() { return m_sock_; }
-	void do_write(chat_message& ch_msg);
+	virtual void do_write(chat_message& ch_msg);
 protected:
 	void do_read_header();
 	void do_read_body();
@@ -52,24 +55,25 @@ private:
 	boost::posix_time::ptime m_update_time;
 	deadline_timer m_check_timeout_timer;
 	chat_message m_read_msg_;
-	blocking_queue<chat_message*> m_write_msg_queue_;
+	blocking_queue<boost::shared_ptr<chat_message>> m_write_msg_queue_;
 	std::size_t m_timeout_elapsed;
 	bool m_is_login;
+	base_voice_card_control m_base_voice_card;
 };
 
-cia_client::cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed) :
-m_sock_(service), m_started_(false), m_check_timeout_timer(service), m_timeout_elapsed(timeout_elapsed)
+cia_client::cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, base_voice_card_control base_voice_card) :
+m_sock_(service), m_started_(false), m_check_timeout_timer(service), m_timeout_elapsed(timeout_elapsed), m_base_voice_card(base_voice_card)
 {
 	while (write_msg_queue_size--)
 	{
-		m_write_msg_queue_.Put(new chat_message());
+		m_write_msg_queue_.Put(boost::make_shared<chat_message>());
 	}
 	m_is_login = false;
 }
 
-cia_client::ptr cia_client::new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed)
+cia_client::ptr cia_client::new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, base_voice_card_control base_voice_card)
 {
-	ptr temp_new(new cia_client(service, write_msg_queue_size, timeout_elapsed));
+	ptr temp_new(new cia_client(service, write_msg_queue_size, timeout_elapsed, base_voice_card));
 	return temp_new;
 }
 
@@ -144,7 +148,7 @@ void cia_client::do_read_body()
 
 void cia_client::do_write(chat_message& ch_msg)
 {
-	chat_message* _ch_msg = m_write_msg_queue_.Take();
+	boost::shared_ptr<chat_message> _ch_msg = m_write_msg_queue_.Take();
 	*_ch_msg = ch_msg;
 	ptr self = shared_from_this();
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "开始准备异步发送数据";
@@ -162,24 +166,27 @@ void cia_client::do_write(chat_message& ch_msg)
 
 void cia_client::do_timeout_check()
 {
-	m_check_timeout_timer.expires_from_now(boost::posix_time::seconds(TIMEOUT_CHECK_ELAPSED));
-	ptr self = shared_from_this();
-	BOOST_LOG_SEV(cia_g_logger, AllEvent) << "开始准备异步检测超时, 触发检测的时间是在"
-		<< TIMEOUT_CHECK_ELAPSED << "秒后, " << "客户端socket超时时间设置为" << m_timeout_elapsed <<"毫秒";
-	m_check_timeout_timer.async_wait([this, self](const error_code& ec){
-		boost::posix_time::ptime now = boost::posix_time::microsec_clock::local_time();
-		if ((now - m_update_time).total_milliseconds() > m_timeout_elapsed) {
-			BOOST_LOG_SEV(cia_g_logger, Debug) << "客户端因超时关闭, 已经在"
-				<< (now - m_update_time).total_milliseconds() << "毫秒内无任何动作";
-			stop();
-		}
-		else if ((now - m_update_time).total_milliseconds() > m_timeout_elapsed / 2) {
-			BOOST_LOG_SEV(cia_g_logger, AllEvent) << "向客户端发送心跳请求, 已经在"
-				<< (now - m_update_time).total_milliseconds() << "毫秒内无任何动作";
-			do_deal_heart_request();
-		}
-		do_timeout_check();
-	});
+	if (m_started_)
+	{
+		m_check_timeout_timer.expires_from_now(boost::posix_time::seconds(TIMEOUT_CHECK_ELAPSED));
+		ptr self = shared_from_this();
+		BOOST_LOG_SEV(cia_g_logger, AllEvent) << "开始准备异步检测超时, 触发检测的时间是在"
+			<< TIMEOUT_CHECK_ELAPSED << "秒后, " << "客户端socket超时时间设置为" << m_timeout_elapsed << "毫秒";
+		m_check_timeout_timer.async_wait([this, self](const error_code& ec){
+			boost::posix_time::ptime now = boost::posix_time::microsec_clock::local_time();
+			if ((now - m_update_time).total_milliseconds() > m_timeout_elapsed) {
+				BOOST_LOG_SEV(cia_g_logger, Debug) << "客户端因超时关闭, 已经在"
+					<< (now - m_update_time).total_milliseconds() << "毫秒内无任何动作";
+				stop();
+			}
+			else if ((now - m_update_time).total_milliseconds() > m_timeout_elapsed / 2) {
+				BOOST_LOG_SEV(cia_g_logger, AllEvent) << "向客户端发送心跳请求, 已经在"
+					<< (now - m_update_time).total_milliseconds() << "毫秒内无任何动作";
+				do_deal_heart_request();
+			}
+			do_timeout_check();
+		});
+	}
 }
 
 void cia_client::do_deal_request(chat_message ch_msg)
@@ -206,36 +213,24 @@ void cia_client::do_deal_request(chat_message ch_msg)
 
 void cia_client::do_deal_call_out_request(ciaMessage& msg)
 {
-	std::string transId = msg.transid();
-	msg.Clear();
-	msg.set_type(CIA_CALL_RESPONSE);
-	msg.set_transid(transId);
-	msg.set_status(CIA_CALL_SUCCESS);
-
-	chat_message chat_msg;
-	chat_msg.encode_proto_buffer(msg);
-	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << msg.DebugString();
-	do_write(chat_msg);
+	ptr self = shared_from_this();
+	//m_base_voice_card.cti_callout(self, msg.transid(), msg.authcode(), msg.pn(), true);
 }
 
 void cia_client::do_deal_heart_request()
 {
 	ciaMessage msg;
 	msg.set_type(CIA_HEART_REQUEST);
-	chat_message chat_msg;
-	chat_msg.encode_proto_buffer(msg);
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << msg.DebugString();
-	do_write(chat_msg);
+	do_write(chat_message(msg));
 }
 
 void cia_client::do_deal_login_request(ciaMessage& msg)
 {
 	msg.set_type(CIA_LOGIN_RESPONSE);
 	msg.set_status(CIA_LOGIN_SUCCESS);
-	chat_message chat_msg;
-	chat_msg.encode_proto_buffer(msg);
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << msg.DebugString();
-	do_write(chat_msg);
+	do_write(chat_message(msg));
 	m_is_login = true;
 }
 

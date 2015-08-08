@@ -1,3 +1,6 @@
+#ifndef CIA_DEF_H_INCLUDE_
+#define CIA_DEF_H_INCLUDE_
+
 #include <string>
 
 using namespace std;
@@ -14,3 +17,5 @@ const string CIA_CALL_SUCCESS("99");
 const string CIA_CALL_FAIL("98");
 const string CIA_CALL_GIVE_UP("01");
 const string CIA_CALL_BUZY("02");
+
+#endif // !CIA_DEF_H_INCLUDE_
