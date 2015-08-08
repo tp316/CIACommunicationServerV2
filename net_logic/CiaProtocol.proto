@@ -1,0 +1,28 @@
+option optimize_for = SPEED;
+
+option java_package = "cn.ciaapp.protobuf";
+
+message ciaMessage{
+	required string type = 1;
+	optional string signalId=2;
+	optional string status=3;
+	optional string pn=4;
+	optional string appId=5;
+	optional string authKey=6;
+	optional string imsi=7;
+	optional string transId=8;
+	optional string authCode=9;
+	optional string timeout=10;
+	optional string des=11;
+	optional string imei=12;
+	optional string mac=13;
+	optional string bluetooth=14;
+	optional string androidId=15;
+	optional string brand=16;
+	optional string phoneType=17;
+	optional string systemVersion=18;
+	optional string appName=19;
+	optional string appVersion=20;
+	optional string packageName=21;
+	optional string sdkVersion=22;
+}
