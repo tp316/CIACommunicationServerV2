@@ -1,6 +1,6 @@
-#include "include_lib.h"
-#include "boost_log.hpp"
-#include "cia_server.hpp"
+#include "windows\include_lib.h"
+#include "tools\boost_log.hpp"
+#include "net_logic\cia_server.hpp"
 
 #include <iostream>
 

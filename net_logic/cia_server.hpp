@@ -1,8 +1,8 @@
-#ifndef CIA_SERVER_HPP_INCLUDE_
+﻿#ifndef CIA_SERVER_HPP_INCLUDE_
 #define CIA_SERVER_HPP_INCLUDE_
 
 #include "cia_client.hpp"
-#include "boost_log.hpp"
+#include "../tools/boost_log.hpp"
 
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>

@@ -1,10 +1,10 @@
-#ifndef CIA_CLIENT_HPP_INCLUDE_
+﻿#ifndef CIA_CLIENT_HPP_INCLUDE_
 #define CIA_CLIENT_HPP_INCLUDE_
 
 #include "chat_message.hpp"
 #include "CIA_DEF.h"
-#include "blocking_queue.hpp"
-#include "boost_log.hpp"
+#include "../tools/blocking_queue.hpp"
+#include "../tools/boost_log.hpp"
 
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/utility.hpp>

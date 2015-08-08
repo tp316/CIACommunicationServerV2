@@ -1,4 +1,4 @@
-#include <condition_variable>
+﻿#include <condition_variable>
 #include <list>
 #include <boost/assert.hpp>
 

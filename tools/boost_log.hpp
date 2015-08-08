@@ -1,4 +1,4 @@
-#ifndef BOOST_LOG_HPP_INCLUDE_
+﻿#ifndef BOOST_LOG_HPP_INCLUDE_
 #define BOOST_LOG_HPP_INCLUDE_
 #include <boost/log/common.hpp>
 #include <boost/log/attributes.hpp>
