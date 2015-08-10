@@ -15,7 +15,7 @@ class cia_server
 {
 public:
 	cia_server(std::size_t io_comppletions_thread_number, std::size_t server_port, 
-		base_voice_card_control base_voice_card, std::size_t client_socket_timeout_elapsed);
+		boost::shared_ptr<base_voice_card_control> base_voice_card, std::size_t client_socket_timeout_elapsed);
 	~cia_server();
 protected:
 	void handle_accept(cia_client::ptr client, const boost::system::error_code & err);
@@ -26,11 +26,11 @@ private:
 	io_service::work m_io_worker;
 	std::size_t m_io_comppletions_thread_number;
 	std::size_t m_client_socket_timeout_elapsed;
-	base_voice_card_control m_base_voice_card;
+	boost::shared_ptr<base_voice_card_control> m_base_voice_card;
 };
 
 cia_server::cia_server(std::size_t io_comppletions_thread_number, std::size_t server_port, 
-	base_voice_card_control base_voice_card, std::size_t client_socket_timeout_elapsed) :
+	boost::shared_ptr<base_voice_card_control> base_voice_card, std::size_t client_socket_timeout_elapsed) :
 m_io_service_(), m_acceptor_(m_io_service_, ip::tcp::endpoint(ip::tcp::v4(), server_port)), m_io_worker(m_io_service_),
 m_base_voice_card(base_voice_card),
 m_io_comppletions_thread_number(io_comppletions_thread_number),

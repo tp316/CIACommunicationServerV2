@@ -1,13 +1,14 @@
 #include "tools\boost_log.hpp"
 #include "net_logic\cia_server.hpp"
-#include "windows\include_win.h"
 #include "cti\voice_card_control.hpp"
+#include "windows\include_win.h"
 
 #include <stdlib.h>
 #include <exception>
 #include <iostream>
 void testNetLogic();
 void testCTI();
+void test_all();
 
 int main(int argc, char* argv[]) {
 	try{
@@ -18,14 +19,30 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 	//testNetLogic();
-	testCTI();
+	//testCTI();
+	test_all();
 	::system("pause");
+}
+
+void test_all()
+{
+	boost::shared_ptr<voice_card_control> p_vcc = boost::make_shared<voice_card_control>(30, 15, true);
+	cia_server cs(16, 8999, p_vcc, 0);
+	std::string readLine;
+	while (true){
+		std::cin >> readLine;
+		if (readLine == "quit")
+		{
+			break;
+		}
+		Sleep(1000);
+	};
 }
 
 void testNetLogic()
 {
-	base_voice_card_control bvcc;
-	cia_server cs(16, 8999, bvcc, 1500);
+	boost::shared_ptr<base_voice_card_control> p_vcc = boost::make_shared<base_voice_card_control>();
+	cia_server cs(16, 8999, p_vcc, 15000);
 	std::string readLine;
 	while (true){
 		std::cin >> readLine;

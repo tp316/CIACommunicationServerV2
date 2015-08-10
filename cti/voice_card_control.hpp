@@ -22,29 +22,20 @@
  * \author LYL QQ-331461049
  * \date 2015/07/21 19:10
  */
-class voice_card_control :
+class voice_card_control : public
 	base_voice_card_control
 {
 public:
 	static thread_safe_queue<std::size_t>           m_channel_queue;	                //保存可用的通道号码
 	//保存中继状态数组, 由于在trunk中使用了NO_COPYABLE的类型 mutex, 所以此处存储shared_ptr
 	static vector<boost::shared_ptr<trunk>>        m_trunk_vector;
-
-	/**
-	* \brief 初始化语音卡, 日志等信息
-	*
-	* \param numChannelCount 语音卡通道数
-	* \param timeout_elapse 呼叫超时时间
-	* \param load_strategy 是否加载延迟策略
-	* \param 是否把呼叫结果放入队列, 方便其他组件获取
-	*/
 	voice_card_control(std::size_t numChannelCount, std::size_t timeout_elapse, bool load_strategy = true);
 	~voice_card_control();
 
 	static int CALLBACK cti_callback(WORD wEvent, int nReference, DWORD dwParam, DWORD dwUser);
 	static int cti_hangUp(std::size_t channelID, string status);
 	static int timeout_check();
-	virtual int cti_callout(boost::shared_ptr<base_client> CTRUNC_ATTACHMENT, string transId, string authCode, string pn, bool hungup_by_echo_tone = true);
+	virtual int cti_callout(boost::shared_ptr<base_client> client_socket, string transId, string authCode, string pn, bool hungup_by_echo_tone = true);
 	int cti_callout_by_channel_ID(int channelID, boost::shared_ptr<base_client> CTRUNC_ATTACHMENT, string transId, string authCode, string pn);	//
 	int get_idel_channel_number();
 
@@ -70,7 +61,14 @@ vector<boost::shared_ptr<trunk>>  voice_card_control::m_trunk_vector;           
 thread_safe_queue<std::size_t>     voice_card_control::m_channel_queue;           // 保存可用的通道号码
 std::size_t                        voice_card_control::m_timeout_elapse;          // 呼叫超时强制挂断的时间, 单位秒
 thread_safe_queue<std::size_t>     voice_card_control::m_sleep_channel_queue;	 //保存因延迟策略, 需要Sleep的通道号码
-
+/**
+* \brief 初始化语音卡, 日志等信息
+*
+* \param numChannelCount 语音卡通道数
+* \param timeout_elapse 呼叫超时时间
+* \param load_strategy 是否加载延迟策略
+* \param 是否把呼叫结果放入队列, 方便其他组件获取
+*/
 voice_card_control::voice_card_control(std::size_t numChannelCount, std::size_t timeout_elapse, bool load_strategy)
 : m_timeout_thread(voice_card_control::timeout_check), m_hungup_strategy_thread_group()
 {

@@ -10,7 +10,7 @@ const string CIA_LOGIN_RESPONSE("000301");
 const string CIA_LOGIN_SUCCESS("99");
 const string CIA_LOGIN_FAIL("98");
 const string CIA_HEART_REQUEST("000302");
-const string CIA_HEART_RESPONSE("010103");
+const string CIA_HEART_RESPONSE("000102");
 const string CIA_CALL_REQUEST("010103");
 const string CIA_CALL_RESPONSE("010303");
 const string CIA_CALL_SUCCESS("99");

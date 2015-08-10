@@ -23,19 +23,19 @@ class cia_client;
 typedef boost::shared_ptr<cia_client> client_ptr;
 std::vector<client_ptr> clients;
 
-class cia_client : public
-	boost::enable_shared_from_this<cia_client>,
-	boost::noncopyable,
-	base_client
+class cia_client : 
+	public boost::enable_shared_from_this<cia_client>,
+	public boost::noncopyable,
+	public base_client
 {
 public:
 	typedef cia_client self_type;
 	typedef boost::system::error_code error_code;
 	typedef boost::shared_ptr<cia_client> ptr;
 
-	cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, base_voice_card_control base_voice_card);
+	cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, boost::shared_ptr<base_voice_card_control> base_voice_card);
 	~cia_client();
-	static ptr new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, base_voice_card_control base_voice_card);
+	static ptr new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, boost::shared_ptr<base_voice_card_control> base_voice_card);
 	void start();
 	void stop();
 	bool started() const { return m_started_; }
@@ -58,10 +58,10 @@ private:
 	blocking_queue<boost::shared_ptr<chat_message>> m_write_msg_queue_;
 	std::size_t m_timeout_elapsed;
 	bool m_is_login;
-	base_voice_card_control m_base_voice_card;
+	boost::shared_ptr<base_voice_card_control> m_base_voice_card;
 };
 
-cia_client::cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, base_voice_card_control base_voice_card) :
+cia_client::cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, boost::shared_ptr<base_voice_card_control> base_voice_card) :
 m_sock_(service), m_started_(false), m_check_timeout_timer(service), m_timeout_elapsed(timeout_elapsed), m_base_voice_card(base_voice_card)
 {
 	while (write_msg_queue_size--)
@@ -71,7 +71,7 @@ m_sock_(service), m_started_(false), m_check_timeout_timer(service), m_timeout_e
 	m_is_login = false;
 }
 
-cia_client::ptr cia_client::new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, base_voice_card_control base_voice_card)
+cia_client::ptr cia_client::new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, boost::shared_ptr<base_voice_card_control> base_voice_card)
 {
 	ptr temp_new(new cia_client(service, write_msg_queue_size, timeout_elapsed, base_voice_card));
 	return temp_new;
@@ -196,7 +196,7 @@ void cia_client::do_deal_request(chat_message ch_msg)
 		BOOST_LOG_SEV(cia_g_logger, Debug) << "报文转换失败, 本次请求不做处理";
 		return;
 	}
-	BOOST_LOG_SEV(cia_g_logger, Debug) << "本次请求的消息体内容为: " << msg.DebugString();
+	BOOST_LOG_SEV(cia_g_logger, Debug) << "本次请求的消息体内容为: " << std::endl << msg.DebugString();
 	if (msg.type() == CIA_LOGIN_REQUEST){
 		BOOST_LOG_SEV(cia_g_logger, Debug) << "本次请求判断为登陆请求";
 		do_deal_login_request(msg);
@@ -214,14 +214,14 @@ void cia_client::do_deal_request(chat_message ch_msg)
 void cia_client::do_deal_call_out_request(ciaMessage& msg)
 {
 	ptr self = shared_from_this();
-	//m_base_voice_card.cti_callout(self, msg.transid(), msg.authcode(), msg.pn(), true);
+	m_base_voice_card->cti_callout(self, msg.transid(), msg.authcode(), msg.pn(), true);
 }
 
 void cia_client::do_deal_heart_request()
 {
 	ciaMessage msg;
 	msg.set_type(CIA_HEART_REQUEST);
-	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << msg.DebugString();
+	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << std::endl << msg.DebugString();
 	do_write(chat_message(msg));
 }
 
@@ -229,7 +229,7 @@ void cia_client::do_deal_login_request(ciaMessage& msg)
 {
 	msg.set_type(CIA_LOGIN_RESPONSE);
 	msg.set_status(CIA_LOGIN_SUCCESS);
-	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << msg.DebugString();
+	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << std::endl << msg.DebugString();
 	do_write(chat_message(msg));
 	m_is_login = true;
 }
