@@ -1,6 +1,7 @@
 ﻿#ifndef CIA_CLIENT_HPP_INCLUDE_
 #define CIA_CLIENT_HPP_INCLUDE_
 
+#include "../system/include_sys.h"
 #include "chat_message.hpp"
 #include "CIA_DEF.h"
 #include "../tools/blocking_queue.hpp"
@@ -14,7 +15,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/shared_ptr.hpp>
 
-const std::size_t TIMEOUT_CHECK_ELAPSED = 3;
+const std::size_t TIMEOUT_CHECK_ELAPSED = 3000;
 
 using namespace boost::asio;
 using namespace boost::posix_time;
@@ -40,7 +41,7 @@ public:
 	void stop();
 	bool started() const { return m_started_; }
 	ip::tcp::socket & sock() { return m_sock_; }
-	virtual void do_write(chat_message& ch_msg);
+	virtual void do_write(chat_message ch_msg);
 protected:
 	void do_read_header();
 	void do_read_body();
@@ -141,24 +142,28 @@ void cia_client::do_read_body()
 		}
 		else
 		{
+			BOOST_LOG_SEV(cia_g_logger, Debug) << "接收新的数据出错, 已经关闭此socket, 错误码:  " << ec;
 			stop();
 		}
 	});
 }
 
-void cia_client::do_write(chat_message& ch_msg)
+void cia_client::do_write(chat_message ch_msg)
 {
 	boost::shared_ptr<chat_message> _ch_msg = m_write_msg_queue_.Take();
+	BOOST_LOG_SEV(cia_g_logger, Debug) << "当前m_write_msg_queue_队列剩余元素:" << m_write_msg_queue_.Size();
 	*_ch_msg = ch_msg;
 	ptr self = shared_from_this();
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "开始准备异步发送数据";
-	m_sock_.async_send(buffer(_ch_msg->data(), _ch_msg->length()),
+	m_sock_.async_send(boost::asio::buffer(_ch_msg->data(), _ch_msg->length()),
 		[this, self, _ch_msg](boost::system::error_code ec, std::size_t /*length*/){
 		m_write_msg_queue_.Put(_ch_msg);
 		if (ec){
 			stop();
 		}
-		else{
+		else
+		{
+			BOOST_LOG_SEV(cia_g_logger, Debug) << "已成功异步发送数据";
 			m_update_time = boost::posix_time::microsec_clock::local_time();
 		}
 	});
@@ -168,11 +173,17 @@ void cia_client::do_timeout_check()
 {
 	if (m_started_)
 	{
-		m_check_timeout_timer.expires_from_now(boost::posix_time::seconds(TIMEOUT_CHECK_ELAPSED));
+		m_check_timeout_timer.expires_from_now(boost::posix_time::milliseconds(TIMEOUT_CHECK_ELAPSED));
 		ptr self = shared_from_this();
 		BOOST_LOG_SEV(cia_g_logger, AllEvent) << "开始准备异步检测超时, 触发检测的时间是在"
-			<< TIMEOUT_CHECK_ELAPSED << "秒后, " << "客户端socket超时时间设置为" << m_timeout_elapsed << "毫秒";
+			<< TIMEOUT_CHECK_ELAPSED << "毫秒后, " << "客户端socket超时时间设置为" << m_timeout_elapsed << "毫秒";
 		m_check_timeout_timer.async_wait([this, self](const error_code& ec){
+			if (ec)
+			{
+				BOOST_LOG_SEV(cia_g_logger, Debug) << "已停止超时检测";
+				stop();
+				return;
+			}
 			boost::posix_time::ptime now = boost::posix_time::microsec_clock::local_time();
 			if ((now - m_update_time).total_milliseconds() > m_timeout_elapsed) {
 				BOOST_LOG_SEV(cia_g_logger, Debug) << "客户端因超时关闭, 已经在"
@@ -214,7 +225,25 @@ void cia_client::do_deal_request(chat_message ch_msg)
 void cia_client::do_deal_call_out_request(ciaMessage& msg)
 {
 	ptr self = shared_from_this();
-	m_base_voice_card->cti_callout(self, msg.transid(), msg.authcode(), msg.pn(), true);
+	int return_val = m_base_voice_card->cti_callout(self, msg.transid(), msg.authcode(), msg.pn(), true);
+
+	if (return_val == 0)
+		return;
+
+	std::string trans_id = msg.transid();
+	msg.Clear();
+	msg.set_transid(trans_id);
+	msg.set_type(CIA_CALL_RESPONSE);
+	if (return_val == -1)
+	{
+		msg.set_status(CIA_CALL_BUZY);
+	}
+	else if (return_val == -2)
+	{
+		msg.set_status(CIA_CALL_FAIL);
+	}
+	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << std::endl << msg.DebugString();
+	do_write(chat_message(msg));
 }
 
 void cia_client::do_deal_heart_request()
@@ -227,6 +256,7 @@ void cia_client::do_deal_heart_request()
 
 void cia_client::do_deal_login_request(ciaMessage& msg)
 {
+	msg.Clear();
 	msg.set_type(CIA_LOGIN_RESPONSE);
 	msg.set_status(CIA_LOGIN_SUCCESS);
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << std::endl << msg.DebugString();

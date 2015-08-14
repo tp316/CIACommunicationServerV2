@@ -1,9 +1,8 @@
 #ifndef CHAT_MESSAGE_HPP
 #define CHAT_MESSAGE_HPP
 
+#include "../system/include_sys.h"
 #include "CiaProtocol.pb.h"
-
-#include <WinSock2.h>
 
 #include <cstdio>
 #include <cstdlib>

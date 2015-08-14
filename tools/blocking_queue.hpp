@@ -1,4 +1,7 @@
-﻿#include <condition_variable>
+﻿#ifndef BLOCKING_QUEUE_HPP_INCLUDE
+#define BLOCKING_QUEUE_HPP_INCLUDE
+
+#include <condition_variable>
 #include <list>
 #include <boost/assert.hpp>
 
@@ -45,3 +48,5 @@ private:
 	std::condition_variable _condvar;
 	std::list<T> _queue;
 };
+
+#endif // !BLOCKING_QUEUE_HPP_INCLUDE

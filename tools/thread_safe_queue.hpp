@@ -4,8 +4,6 @@
 #include <queue>
 #include <stdexcept>
 #include <boost/thread.hpp>
-using namespace std;
-using namespace boost;
 
 /**
  * 封装一个线程安全的deque队列， 用于队列操作
@@ -38,7 +36,7 @@ public:
 		_mutex.lock();
 		if (_container.size() == 0) {
 			_mutex.unlock();
-			throw out_of_range("container is null");    //返回异常， 主要因为容器中的元素可能为指针， 也可能为基本类型 如 int， 则在为空的情况下返回 NULL 或 0都不合适			
+			throw std::out_of_range("container is null");    //返回异常， 主要因为容器中的元素可能为指针， 也可能为基本类型 如 int， 则在为空的情况下返回 NULL 或 0都不合适			
 		}
 		T front = _container.front();
 		_container.pop();

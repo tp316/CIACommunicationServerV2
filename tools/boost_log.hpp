@@ -35,11 +35,11 @@ BOOST_LOG_INLINE_GLOBAL_LOGGER_DEFAULT(cia_lg, src::severity_logger< >)
 
 src::severity_logger< >& cia_g_logger = cia_lg::get();	                //日志记录
 
-void init_log()
+void init_log(std::string log_config_file)
 {
 	try
 	{
-		std::ifstream settings("cia_log.config");
+		std::ifstream settings(log_config_file);
 		if (!settings.is_open())
 		{
 			throw std::runtime_error("无法打开配置文件:cia_log.config");
