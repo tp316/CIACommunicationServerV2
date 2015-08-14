@@ -34,9 +34,9 @@ public:
 	typedef boost::system::error_code error_code;
 	typedef boost::shared_ptr<cia_client> ptr;
 
-	cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, boost::shared_ptr<base_voice_card_control> base_voice_card);
+	cia_client(io_service& service, boost::shared_ptr<config_server> config_server_, boost::shared_ptr<base_voice_card_control> base_voice_card);
 	~cia_client();
-	static ptr new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, boost::shared_ptr<base_voice_card_control> base_voice_card);
+	static ptr new_(io_service& service, boost::shared_ptr<config_server> config_server_, boost::shared_ptr<base_voice_card_control> base_voice_card);
 	void start();
 	void stop();
 	bool started() const { return m_started_; }
@@ -60,11 +60,15 @@ private:
 	std::size_t m_timeout_elapsed;
 	bool m_is_login;
 	boost::shared_ptr<base_voice_card_control> m_base_voice_card;
+	boost::shared_ptr<config_server> m_config_server;
 };
 
-cia_client::cia_client(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, boost::shared_ptr<base_voice_card_control> base_voice_card) :
-m_sock_(service), m_started_(false), m_check_timeout_timer(service), m_timeout_elapsed(timeout_elapsed), m_base_voice_card(base_voice_card)
+cia_client::cia_client(io_service& service, boost::shared_ptr<config_server> config_server_, boost::shared_ptr<base_voice_card_control> base_voice_card) :
+m_sock_(service), m_started_(false), m_check_timeout_timer(service), m_base_voice_card(base_voice_card),
+m_config_server(config_server_)
 {
+	m_timeout_elapsed = m_config_server->get_client_socket_timeout_elapsed();
+	std::size_t write_msg_queue_size = m_config_server->get_iocp_thread_number(); // 每个客户端socket持有的缓冲池队列, 数量暂时和iocp处理线程数量一致
 	while (write_msg_queue_size--)
 	{
 		m_write_msg_queue_.Put(boost::make_shared<chat_message>());
@@ -72,9 +76,9 @@ m_sock_(service), m_started_(false), m_check_timeout_timer(service), m_timeout_e
 	m_is_login = false;
 }
 
-cia_client::ptr cia_client::new_(io_service& service, std::size_t write_msg_queue_size, std::size_t timeout_elapsed, boost::shared_ptr<base_voice_card_control> base_voice_card)
+cia_client::ptr cia_client::new_(io_service& service, boost::shared_ptr<config_server> config_server_, boost::shared_ptr<base_voice_card_control> base_voice_card)
 {
-	ptr temp_new(new cia_client(service, write_msg_queue_size, timeout_elapsed, base_voice_card));
+	ptr temp_new(new cia_client(service, config_server_, base_voice_card));
 	return temp_new;
 }
 
@@ -101,6 +105,7 @@ void cia_client::stop()
 	auto it = std::find(clients.begin(), clients.end(), self);
 	clients.erase(it);
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "客户端socket已经调用stop函数关闭";
+	m_config_server->set_started(true);	// 为了防止网络情况异常, 造成服务端关闭连接后重置此值为2, 通讯端保证此值为1
 }
 
 void cia_client::do_read_header()
@@ -155,6 +160,7 @@ void cia_client::do_write(chat_message ch_msg)
 	*_ch_msg = ch_msg;
 	ptr self = shared_from_this();
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "开始准备异步发送数据";
+	BOOST_LOG_SEV(cia_g_logger, Debug) << "异步发送的数据为::" << std::endl << ch_msg.show_proc_buf_msg();
 	m_sock_.async_send(boost::asio::buffer(_ch_msg->data(), _ch_msg->length()),
 		[this, self, _ch_msg](boost::system::error_code ec, std::size_t /*length*/){
 		m_write_msg_queue_.Put(_ch_msg);
@@ -242,7 +248,6 @@ void cia_client::do_deal_call_out_request(ciaMessage& msg)
 	{
 		msg.set_status(CIA_CALL_FAIL);
 	}
-	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << std::endl << msg.DebugString();
 	do_write(chat_message(msg));
 }
 
@@ -250,7 +255,6 @@ void cia_client::do_deal_heart_request()
 {
 	ciaMessage msg;
 	msg.set_type(CIA_HEART_REQUEST);
-	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << std::endl << msg.DebugString();
 	do_write(chat_message(msg));
 }
 
@@ -259,7 +263,6 @@ void cia_client::do_deal_login_request(ciaMessage& msg)
 	msg.Clear();
 	msg.set_type(CIA_LOGIN_RESPONSE);
 	msg.set_status(CIA_LOGIN_SUCCESS);
-	BOOST_LOG_SEV(cia_g_logger, Debug) << "发送的消息内容:" << std::endl << msg.DebugString();
 	do_write(chat_message(msg));
 	m_is_login = true;
 }

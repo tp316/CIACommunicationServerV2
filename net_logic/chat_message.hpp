@@ -24,6 +24,7 @@ public:
 		body_length(msg.ByteSize());
 		msg.SerializeToArray(body(), msg.ByteSize());
 		encode_header();
+		msg_ = msg;
 	}
 
 	const char* data() const
@@ -79,9 +80,15 @@ public:
 		((int*)data_)[0] = htonl(body_length_);
 	}
 
+	std::string show_proc_buf_msg()
+	{
+		return msg_.DebugString();
+	}
+
 private:
 	char data_[header_length + max_body_length];
 	std::size_t body_length_;
+	ciaMessage msg_;
 };
 
 #endif // CHAT_MESSAGE_HPP

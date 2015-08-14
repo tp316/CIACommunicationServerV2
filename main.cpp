@@ -33,13 +33,16 @@ int main(int argc, char* argv[]) {
 	//testCTI(config_server_);
 	//test_all(config_server_);
 	test_config_server(config_server_);
-	::system("pause");
+	boost::this_thread::sleep_for(boost::chrono::seconds(3));
+	config_server_->set_idol_channel_number(0);
+	config_server_->set_started(false);
 }
 
 void test_all(boost::shared_ptr<config_server> config_server_)
 {
 	boost::shared_ptr<voice_card_control> p_vcc = boost::make_shared<voice_card_control>(config_server_, true);
-	cia_server cs(config_server_, p_vcc);
+	boost::shared_ptr<cia_server> cs = boost::make_shared<cia_server>(config_server_, p_vcc);
+	cs->start();
 	config_server_->set_started(true);
 	std::string readLine;
 	while (true){
@@ -50,8 +53,6 @@ void test_all(boost::shared_ptr<config_server> config_server_)
 		}
 		boost::this_thread::sleep_for(boost::chrono::seconds(1));
 	};
-	config_server_->set_idol_channel_number(0);
-	config_server_->set_started(false);
 }
 
 void testNetLogic(boost::shared_ptr<config_server> config_server_)
