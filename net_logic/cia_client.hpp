@@ -105,7 +105,7 @@ void cia_client::stop()
 	auto it = std::find(clients.begin(), clients.end(), self);
 	clients.erase(it);
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "客户端socket已经调用stop函数关闭";
-	m_config_server->set_started(true);	// 为了防止网络情况异常, 造成服务端关闭连接后重置此值为2, 通讯端保证此值为1
+	//x m_config_server->set_started(true);	// 为了防止网络情况异常, 造成服务端关闭连接后重置此值为2, 通讯端保证此值为1
 }
 
 void cia_client::do_read_header()
@@ -160,16 +160,17 @@ void cia_client::do_write(chat_message ch_msg)
 	*_ch_msg = ch_msg;
 	ptr self = shared_from_this();
 	BOOST_LOG_SEV(cia_g_logger, Debug) << "开始准备异步发送数据";
-	BOOST_LOG_SEV(cia_g_logger, Debug) << "异步发送的数据为::" << std::endl << ch_msg.show_proc_buf_msg();
+	BOOST_LOG_SEV(cia_g_logger, Debug) << "异步发送的数据为::" << std::endl << ch_msg.m_procbuffer_msg.DebugString();
 	m_sock_.async_send(boost::asio::buffer(_ch_msg->data(), _ch_msg->length()),
 		[this, self, _ch_msg](boost::system::error_code ec, std::size_t /*length*/){
 		m_write_msg_queue_.Put(_ch_msg);
 		if (ec){
+			BOOST_LOG_SEV(cia_g_logger, Debug) << "异步发送数据回调函数，检测到异常， 关闭此客户端socket, 错误码" << ec;
 			stop();
 		}
 		else
 		{
-			BOOST_LOG_SEV(cia_g_logger, Debug) << "已成功异步发送数据";
+			BOOST_LOG_SEV(cia_g_logger, Debug) << "已成功异步发送数据, 数据的transid:" << _ch_msg->m_procbuffer_msg.transid();
 			m_update_time = boost::posix_time::microsec_clock::local_time();
 		}
 	});
@@ -231,24 +232,7 @@ void cia_client::do_deal_request(chat_message ch_msg)
 void cia_client::do_deal_call_out_request(ciaMessage& msg)
 {
 	ptr self = shared_from_this();
-	int return_val = m_base_voice_card->cti_callout(self, msg.transid(), msg.authcode(), msg.pn(), true);
-
-	if (return_val == 0)
-		return;
-
-	std::string trans_id = msg.transid();
-	msg.Clear();
-	msg.set_transid(trans_id);
-	msg.set_type(CIA_CALL_RESPONSE);
-	if (return_val == -1)
-	{
-		msg.set_status(CIA_CALL_BUZY);
-	}
-	else if (return_val == -2)
-	{
-		msg.set_status(CIA_CALL_FAIL);
-	}
-	do_write(chat_message(msg));
+	m_base_voice_card->cti_callout(boost::make_shared<cti_call_out_param>(self, msg.transid(), msg.authcode(), msg.pn(), true));
 }
 
 void cia_client::do_deal_heart_request()

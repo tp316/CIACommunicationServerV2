@@ -30,9 +30,9 @@ int main(int argc, char* argv[]) {
 	}
 	boost::shared_ptr<config_server> config_server_ = boost::make_shared<config_server>(argv[1], argv[2]);
 	//testNetLogic(config_server_);
-	//testCTI(config_server_);
+	testCTI(config_server_);
 	//test_all(config_server_);
-	test_config_server(config_server_);
+	//test_config_server(config_server_);
 	boost::this_thread::sleep_for(boost::chrono::seconds(3));
 	config_server_->set_idol_channel_number(0);
 	config_server_->set_started(false);
@@ -58,7 +58,9 @@ void test_all(boost::shared_ptr<config_server> config_server_)
 void testNetLogic(boost::shared_ptr<config_server> config_server_)
 {
 	boost::shared_ptr<base_voice_card_control> p_vcc = boost::make_shared<base_voice_card_control>();
-	cia_server cs(config_server_, p_vcc);
+	boost::shared_ptr<cia_server> cs = boost::make_shared<cia_server>(config_server_, p_vcc);
+	cs->start();
+	config_server_->set_started(true);
 	std::string readLine;
 	while (true){
 		std::cin >> readLine;
@@ -76,19 +78,20 @@ void testCTI(boost::shared_ptr<config_server> config_server_)
 	{
 		// 78  服务器 86051200 86051882 86051822
 		// 145 服务器 86057405 86057408 86057410	86057415 86057423 86057428
-		//           86057431 86057435 86057437 86057459 86057501 86057851 86057861
+		//            86057431 86057435 86057437 86057459 86057501 86057851 86057861
+		// 148 服务器 65992764 35993934
 		std::string callerNum = "86051200";
 		// 李禹霖 018072710179 018515663997
 		// 马超   018611967787
 		std::string calledNum = "018515663997";
-		voice_card_control vcc(config_server_, true);
+		boost::shared_ptr<voice_card_control> p_vcc = boost::make_shared<voice_card_control>(config_server_, true);
 		size_t trans_id = 100;
 		boost::shared_ptr<base_client> client_ptr = boost::make_shared<base_client>();
 		BOOST_LOG_SEV(cia_g_logger, Critical) << ">>>>>--------------------------------------------------------------------第一波检测, 测试10次呼叫, 响一声挂断--------------------------------------------------------------------<<<<<";
 		for (size_t i = 0; i < 10; i++)
-		{
-			vcc.cti_callout(client_ptr, std::to_string(trans_id++), callerNum, calledNum);
-			boost::this_thread::sleep_for(boost::chrono::seconds(10));
+		{		
+			p_vcc->cti_callout(boost::make_shared<cti_call_out_param>(client_ptr, std::to_string(trans_id++), callerNum, calledNum));
+			boost::this_thread::sleep_for(boost::chrono::seconds(20));
 		}
 		//callerNum = "86051882";
 		//BOOST_LOG_SEV(g_logger, Critical) << ">>>>>--------------------------------------------------------------------第二波检测, 测试10次呼叫, 响一声不挂断, 等待超时15秒后, 由超时检测线程挂断--------------------------------------------------------------------<<<<<";

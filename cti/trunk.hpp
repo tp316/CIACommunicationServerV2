@@ -20,7 +20,8 @@ enum trunk_state {
 	TRK_WAIT_CONNECT,	                    // 被占用, 等待连接
 	TRK_CALLOUT_DAIL,	                    // 已拨号
 	TRK_CHEK_BARGEIN,	                    // 检测铃音
-	TRK_SLEEP	                            // 延迟挂机状态
+	TRK_SLEEP,	                            // 延迟挂机状态
+	TRK_HUNGUP                              // 准备挂机状态
 };
 
 /**
@@ -37,6 +38,7 @@ public:
 	std::string                    m_caller_id;            // 主叫号码
 	std::string                    m_called_id;	           // 被叫号码
 	std::string                    m_transId;              // 业务流水号
+	//TODO 此为V1版本boost timer库， 考虑改为V2版本
 	boost::timer                   m_callTime;	           // 发起呼叫的时间
 	bool                           m_hungup_by_echo_tone;  // 是否响一声挂机, false 非响一声挂机情况仅限于测试用, 生产环境设置为 true, 保证响一声立即挂机
 	boost::mutex                   m_trunk_mutex;          // 通道状态锁
@@ -45,6 +47,16 @@ public:
 	trunk()
 	{
 		m_step = TRK_IDLE;
+	}
+
+	/**
+	 * \brief 获取通道被占用的时间
+	 *
+	 * \return 返回 获取通道被占用的时间， 单位：毫秒
+	 */
+	int elpased()
+	{
+		return (int)(m_callTime.elapsed() * 1000);
 	}
 
 	/**

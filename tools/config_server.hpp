@@ -31,6 +31,8 @@ public:
 
 	void set_idol_channel_number(std::size_t idol_channel_number);
 	void set_started(bool status);
+	int get_started();
+
 	std::size_t get_iocp_thread_number();
 	bool flush_iocp_thread_number();
 	std::size_t get_server_port();
@@ -335,6 +337,20 @@ bool config_server::flush_cti_set_idol_channel_num_elapsed()
 	{
 		m_cit_set_idol_channel_elpesed = std::stoi(elapsed);
 		return true;
+	}
+}
+
+int config_server::get_started()
+{
+	std::string temp_val = zk_get_data(m_current_node_path + ZOO_PATH_STATUS);
+	if (temp_val.empty())
+	{
+		BOOST_LOG_SEV(cia_g_logger, Critical) << "获取通讯端状态失败";
+		return -1;
+	}
+	else
+	{
+		return std::stoi(temp_val);;
 	}
 }
 

@@ -91,7 +91,11 @@ void cia_server::set_idol_channel_timer()
 		}
 		else
 		{
-			m_config_server->set_idol_channel_number(m_base_voice_card->get_idel_channel_number());
+			m_config_server->set_idol_channel_number(m_base_voice_card->get_idol_channel_number());
+			if (m_config_server->get_started() == 2) // 1 开启 2 关闭 -1 获取节点值失败
+			{
+				m_config_server->set_started(true);
+			}
 			set_idol_channel_timer();
 		}
 	});

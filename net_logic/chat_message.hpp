@@ -8,87 +8,94 @@
 #include <cstdlib>
 #include <cstring>
 
+/**
+ * \brief 与通讯端数据通讯的封装类
+ *
+ * \author LYL QQ-331461049
+ * \date 2015/08/18 20:27
+ */
 class chat_message
 {
 public:
-	enum { header_length = 4 };
-	enum { max_body_length = 512 };
-
-	chat_message()
-		: body_length_(0)
-	{
-	}
+	chat_message():m_body_length(0){}
 
 	chat_message(ciaMessage& msg)
 	{
 		body_length(msg.ByteSize());
 		msg.SerializeToArray(body(), msg.ByteSize());
 		encode_header();
-		msg_ = msg;
+		m_procbuffer_msg = msg;
 	}
 
 	const char* data() const
 	{
-		return data_;
+		return m_data;
 	}
 
 	char* data()
 	{
-		return data_;
+		return m_data;
 	}
 
 	std::size_t length() const
 	{
-		return header_length + body_length_;
+		return header_length + m_body_length;
 	}
 
 	const char* body() const
 	{
-		return data_ + header_length;
+		return m_data + header_length;
 	}
 
 	char* body()
 	{
-		return data_ + header_length;
+		return m_data + header_length;
 	}
 
 	std::size_t body_length() const
 	{
-		return body_length_;
+		return m_body_length;
 	}
 
 	void body_length(std::size_t new_length)
 	{
-		body_length_ = new_length;
-		if (body_length_ > max_body_length)
-			body_length_ = max_body_length;
+		m_body_length = new_length;
+		if (m_body_length > max_body_length)
+			m_body_length = max_body_length;
 	}
 
+	/**
+	 * \brief 解析接收到的报文头， 并保存解析后的结果（报文体的长度）
+	 *
+	 * \return true 解析成功， false 解析失败， 报文体长度超过最大缓冲区 
+	 */
 	bool decode_header()
 	{
-		body_length_ = ntohl(((int*)data_)[0]);
-		if (body_length_ > max_body_length)
+		m_body_length = ntohl(((int*)m_data)[0]);
+		if (m_body_length > max_body_length)
 		{
-			body_length_ = 0;
+			m_body_length = 0;
 			return false;
 		}
 		return true;
 	}
 
+	/**
+	 * \brief 填充好报文体后， 调用此方法由报文体设置报文头的值
+	 *
+	 */
 	void encode_header()
 	{
-		((int*)data_)[0] = htonl(body_length_);
+		((int*)m_data)[0] = htonl(m_body_length);
 	}
 
-	std::string show_proc_buf_msg()
-	{
-		return msg_.DebugString();
-	}
-
+public:
+	enum { header_length = 4 };                   // 数据传输前4个字节，用作报文头， 用来保存报文体（第四个字节以后）的长度
+	enum { max_body_length = 512 };               // 报文体的最大长度
+	ciaMessage m_procbuffer_msg;                  // 传输的报文采用google的protocol buffer做数据封装
 private:
-	char data_[header_length + max_body_length];
-	std::size_t body_length_;
-	ciaMessage msg_;
+	char m_data[header_length + max_body_length]; // 报文缓冲区
+	std::size_t m_body_length;                    // 报文体的实际长度， 放在传输报文的前4个字节中保存
 };
 
 #endif // CHAT_MESSAGE_HPP

@@ -3,17 +3,16 @@
 
 #include <string>
 
-const std::string CIA_LOGIN_REQUEST("000101");
-const std::string CIA_LOGIN_RESPONSE("000301");
-const std::string CIA_LOGIN_SUCCESS("99");
-const std::string CIA_LOGIN_FAIL("98");
-const std::string CIA_HEART_REQUEST("000302");
-const std::string CIA_HEART_RESPONSE("000102");
-const std::string CIA_CALL_REQUEST("010103");
-const std::string CIA_CALL_RESPONSE("010303");
-const std::string CIA_CALL_SUCCESS("99");
-const std::string CIA_CALL_FAIL("98");
-const std::string CIA_CALL_GIVE_UP("01");
-const std::string CIA_CALL_BUZY("02");
+const std::string CIA_LOGIN_REQUEST("000101");    // µÇÂ½ÇëÇó
+const std::string CIA_LOGIN_RESPONSE("000301");   // µÇÂ½ÏìÓ¦
+const std::string CIA_LOGIN_SUCCESS("99");        // µÇÂ½³É¹¦
+const std::string CIA_LOGIN_FAIL("98");           // µÇÂ½Ê§°Ü
+const std::string CIA_HEART_REQUEST("000302");    // ÐÄÌøÇëÇó
+const std::string CIA_HEART_RESPONSE("000102");   // ÐÄÌøÏìÓ¦
+const std::string CIA_CALL_REQUEST("010103");     // ºô½ÐÇëÇó
+const std::string CIA_CALL_RESPONSE("010303");    // ºô½Ð»ØÓ¦
+const std::string CIA_CALL_SUCCESS("99");         // ºô½Ð³É¹¦
+const std::string CIA_CALL_FAIL("98");            // ºô½ÐÊ§°Ü
+const std::string CIA_CALL_TIMEOUT("01");         // ºô½ÐÇëÇó³¬Ê±
 
 #endif // !CIA_DEF_H_INCLUDE_
